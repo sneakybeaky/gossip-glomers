@@ -1,18 +1,17 @@
 package main
 
 import (
-	cryptorand "crypto/rand"
 	"encoding/json"
+	"fmt"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
-	"github.com/oklog/ulid/v2"
 	"log/slog"
-	"time"
+	"sync/atomic"
 )
 
 func main() {
 	n := maelstrom.NewNode()
 
-	entropy := cryptorand.Reader
+	i := atomic.Int64{}
 
 	n.Handle("generate", func(msg maelstrom.Message) error {
 		// Unmarshal the message body as a loosely-typed map.
@@ -23,14 +22,7 @@ func main() {
 
 		// Update the message type to return back.
 		body["type"] = "generate_ok"
-
-		ms := ulid.Timestamp(time.Now())
-		id, err := ulid.New(ms, entropy)
-		if err != nil {
-			return err
-		}
-
-		body["id"] = id
+		body["id"] = fmt.Sprintf("%s:%d", n.ID(), i.Add(1))
 
 		// Echo the original message back with the updated message type and content.
 		return n.Reply(msg, body)
