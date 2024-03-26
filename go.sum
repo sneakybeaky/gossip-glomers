@@ -1,2 +1,5 @@
 github.com/jepsen-io/maelstrom/demo/go v0.0.0-20231231190402-2674df7c1076 h1:F5ytAY6tuSPROoHctDr154A6ePf67xQ90Jre/IT+mJ8=
 github.com/jepsen-io/maelstrom/demo/go v0.0.0-20231231190402-2674df7c1076/go.mod h1:i6aVIs5AIOOaQF1lAisBm7DDeWM1Iopf+26UxjagsCU=
+github.com/oklog/ulid/v2 v2.1.0 h1:+9lhoxAP56we25tyYETBBY1YLA2SaoLvUFgrP2miPJU=
+github.com/oklog/ulid/v2 v2.1.0/go.mod h1:rcEKHmBBKfef9DhnvX7y1HZBYxjXb0cP5ExxNsTT1QQ=
+github.com/pborman/getopt v0.0.0-20170112200414-7148bc3a4c30/go.mod h1:85jBQOZwpVEaDAr341tbn15RS4fCAsIst0qp7i8ex1o=
