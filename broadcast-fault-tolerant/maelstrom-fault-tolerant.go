@@ -1,11 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"github.com/failsafe-go/failsafe-go"
+	"github.com/failsafe-go/failsafe-go/retrypolicy"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
+	"golang.org/x/sync/errgroup"
+	"log"
 	"log/slog"
 	"os"
+	"os/signal"
 	"sync"
+	"time"
 )
 
 type app struct {
@@ -14,9 +22,10 @@ type app struct {
 	n          *maelstrom.Node
 	neighbours []string
 	logger     *slog.Logger
+	ctx        context.Context
 }
 
-func newApp(n *maelstrom.Node) *app {
+func newApp(ctx context.Context, n *maelstrom.Node) *app {
 
 	opts := &slog.HandlerOptions{
 		Level: slog.LevelDebug,
@@ -25,6 +34,7 @@ func newApp(n *maelstrom.Node) *app {
 		n:        n,
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, opts)),
 		messages: make(map[float64]bool),
+		ctx:      ctx,
 	}
 
 	n.Handle("broadcast", a.handleBroadcast)
@@ -35,6 +45,10 @@ func newApp(n *maelstrom.Node) *app {
 	return a
 }
 
+func (a *app) Run() error {
+	return a.n.Run()
+}
+
 func (a *app) handleInit(msg maelstrom.Message) error {
 	var b maelstrom.InitMessageBody
 	if err := json.Unmarshal(msg.Body, &b); err != nil {
@@ -42,6 +56,43 @@ func (a *app) handleInit(msg maelstrom.Message) error {
 	}
 
 	a.logger = a.logger.With("id", b.NodeID)
+	return nil
+}
+
+type broadcaster struct {
+	dest        string
+	body        any
+	logger      *slog.Logger
+	rpc         func(context.Context, string, any) (maelstrom.Message, error)
+	retryPolicy retrypolicy.RetryPolicy[maelstrom.Message]
+}
+
+func (b broadcaster) broadcast(ctx context.Context) error {
+
+	type responseBody struct {
+		Type string `json:"type"`
+	}
+
+	b.logger.Debug("Sending broadcast to neighbour")
+
+	resp, err := failsafe.Get[maelstrom.Message](func() (maelstrom.Message, error) {
+		ctxt, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+		defer cancel()
+		return b.rpc(ctxt, b.dest, b.body)
+	}, b.retryPolicy)
+
+	if err != nil {
+		b.logger.Error("Failed broadcasting", slog.Any("error", err))
+		return err
+	}
+
+	b.logger.Debug("Got broadcast response", slog.Any("response", resp))
+
+	var body responseBody
+	if err := json.Unmarshal(resp.Body, &body); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -71,17 +122,20 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 
 	// Send to adjacent nodes to us
 	for _, neighbour := range a.neighbours {
-		a.logger.Debug("Sending broadcast to neighbour", slog.String("neighbour", neighbour))
-		err := a.n.RPC(neighbour, body, func(msg maelstrom.Message) error {
-			//a.logger.Debug("Got callback", slog.Any("msg", msg))
-			return nil
-		})
-		if err != nil {
-			a.logger.Error("Failed to send to neighbour",
-				slog.String("neighbour", neighbour),
-				slog.Any("error", err))
-			return err
-		}
+
+		go func(neighbour string) {
+			b := broadcaster{
+				dest:   neighbour,
+				body:   body,
+				logger: a.logger.With("destination", neighbour),
+				rpc:    a.n.SyncRPC,
+				retryPolicy: retrypolicy.Builder[maelstrom.Message]().
+					HandleErrors(context.DeadlineExceeded).
+					WithDelay(5 * time.Millisecond).WithMaxRetries(-1).Build(),
+			}
+			_ = b.broadcast(a.ctx)
+		}(neighbour)
+
 	}
 
 	response := map[string]any{
@@ -141,11 +195,27 @@ func (a *app) handleTopology(msg maelstrom.Message) error {
 
 func main() {
 
-	n := maelstrom.NewNode()
-	newApp(n)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
-	if err := n.Run(); err != nil {
-		slog.Error("Unable to run the handler", slog.Any("error", err))
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+
+		n := maelstrom.NewNode()
+		return newApp(gctx, n).Run()
+
+	})
+
+	err := g.Wait()
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Println("context was canceled")
+		} else {
+			log.Printf("received error: %v\n", err)
+		}
+	} else {
+		log.Println("finished clean")
 	}
 
 }
