@@ -34,7 +34,12 @@
       "unique-ids": [
         "go install  unique-ids/*",
         "./maelstrom/maelstrom test -w unique-ids --bin $GOPATH/bin/unique-ids --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition"
+      ],
+      "broadcast-single-node": [
+        "go install  broadcast-single-node/*",
+        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast --node-count 1 --time-limit 20 --rate 10"
       ]
+
     }
   }
 }
