@@ -42,6 +42,10 @@
       "broadcast-multi-node": [
         "go install broadcast-multi-node/*",
         "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast-multi --node-count 5 --time-limit 20 --rate 10"
+      ],
+      "broadcast-fault-tolerant": [
+        "go install broadcast-fault-tolerant/*",
+        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-fault-tolerant --node-count 5 --time-limit 20 --rate 10 --nemesis partition"
       ]
 
     }
