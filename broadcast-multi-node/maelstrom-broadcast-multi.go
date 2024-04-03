@@ -59,6 +59,14 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 
 	a.mx.Lock()
 	defer a.mx.Unlock()
+
+	ok, _ := a.messages[body.Message]
+
+	if ok {
+		// already seen
+		return nil
+	}
+
 	a.messages[body.Message] = true
 
 	// Send to adjacent nodes to us
