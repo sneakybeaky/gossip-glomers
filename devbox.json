@@ -46,6 +46,10 @@
       "broadcast-fault-tolerant": [
         "go install broadcast-fault-tolerant/*",
         "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-fault-tolerant --node-count 5 --time-limit 20 --rate 10 --nemesis partition"
+      ],
+      "broadcast-efficient-1": [
+        "go install broadcast-efficient-1/*",
+        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/broadcast-efficient-1 --node-count 25 --time-limit 20 --rate 100 --latency 100"
       ]
 
     }
