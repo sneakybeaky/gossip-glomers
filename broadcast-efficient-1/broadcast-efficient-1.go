@@ -120,6 +120,10 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 	// Send to adjacent nodes to us
 	for _, neighbour := range a.neighbours {
 
+		if neighbour == msg.Src {
+			continue // don't send back to where we got it from
+		}
+
 		go func(neighbour string) {
 			b := broadcaster{
 				dest:   neighbour,
