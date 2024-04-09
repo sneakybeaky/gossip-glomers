@@ -106,10 +106,6 @@ type broadcaster struct {
 
 func (b broadcaster) broadcast() error {
 
-	type responseBody struct {
-		Type string `json:"type"`
-	}
-
 	b.logger.Debug("Sending sync to neighbour")
 
 	err := failsafe.Run(func() error {
