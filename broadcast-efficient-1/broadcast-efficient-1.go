@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/failsafe-go/failsafe-go"
-	"github.com/failsafe-go/failsafe-go/retrypolicy"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 	"log/slog"
 	"os"
-	"time"
 )
 
 type app struct {
@@ -53,30 +49,6 @@ func (a *app) handleInit(msg maelstrom.Message) error {
 	return nil
 }
 
-type broadcaster struct {
-	dest        string
-	body        any
-	logger      *slog.Logger
-	send        func(dest string, body any) error
-	retryPolicy retrypolicy.RetryPolicy[any]
-}
-
-func (b broadcaster) broadcast() error {
-
-	b.logger.Debug("Sending sync to neighbour")
-
-	err := failsafe.Run(func() error {
-		return b.send(b.dest, b.body)
-	}, b.retryPolicy)
-
-	if err != nil {
-		b.logger.Error("Failed broadcasting", slog.Any("error", err))
-		return err
-	}
-
-	return nil
-}
-
 func (a *app) handleBroadcast(msg maelstrom.Message) error {
 
 	type broadcast struct {
@@ -109,24 +81,21 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 		Values: a.values.Values(),
 	}
 
-	// Sync with all other nodes in the network
+	// Gossip with every other node to replicate our values
 	for _, n := range a.topology.AllBut(a.n.ID()) {
 
-		go func(neighbour string, body any) {
-			b := broadcaster{
-				dest:   neighbour,
+		go func(destination string, body syncBody) {
+			b := syncer{
+				dest:   destination,
 				body:   body,
-				logger: a.logger.With("destination", neighbour),
+				logger: a.logger.With("destination", destination),
 				send:   a.n.Send,
-				retryPolicy: retrypolicy.Builder[any]().
-					HandleErrors(context.DeadlineExceeded).
-					WithDelay(5 * time.Millisecond).WithMaxRetries(-1).Build(),
 			}
-			err := b.broadcast()
+			err := b.sync()
 
 			if err != nil {
-				a.logger.Error("Unable to broadcast",
-					slog.String("destination", neighbour),
+				a.logger.Error("Unable to sync",
+					slog.String("destination", destination),
 					slog.Any("error", err))
 			}
 
