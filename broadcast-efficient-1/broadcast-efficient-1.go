@@ -24,10 +24,14 @@ func newMessages() *messages {
 	}
 }
 
-func (m *messages) Store(message float64) {
+func (m *messages) Store(values ...float64) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
-	m.messages[message] = true
+
+	for _, v := range values {
+		m.messages[v] = true
+	}
+
 }
 
 func (m *messages) Messages() []float64 {
@@ -73,6 +77,7 @@ func newApp(n *maelstrom.Node) *app {
 	n.Handle("read", a.handleRead)
 	n.Handle("topology", a.handleTopology)
 	n.Handle("init", a.handleInit)
+	n.Handle("sync", a.handleSync)
 
 	return a
 }
@@ -95,8 +100,8 @@ type broadcaster struct {
 	dest        string
 	body        any
 	logger      *slog.Logger
-	rpc         func(context.Context, string, any) (maelstrom.Message, error)
-	retryPolicy retrypolicy.RetryPolicy[maelstrom.Message]
+	send        func(dest string, body any) error
+	retryPolicy retrypolicy.RetryPolicy[any]
 }
 
 func (b broadcaster) broadcast() error {
@@ -105,27 +110,16 @@ func (b broadcaster) broadcast() error {
 		Type string `json:"type"`
 	}
 
-	b.logger.Debug("Sending broadcast to neighbour")
+	b.logger.Debug("Sending sync to neighbour")
 
-	resp, err := failsafe.Get[maelstrom.Message](func() (maelstrom.Message, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
-		return b.rpc(ctx, b.dest, b.body)
+	err := failsafe.Run(func() error {
+		return b.send(b.dest, b.body)
 	}, b.retryPolicy)
 
 	if err != nil {
 		b.logger.Error("Failed broadcasting", slog.Any("error", err))
 		return err
 	}
-
-	b.logger.Debug("Got broadcast response", slog.Any("response", resp))
-
-	var body responseBody
-	if err := json.Unmarshal(resp.Body, &body); err != nil {
-		return err
-	}
-
-	b.logger.Debug("Decoded response", slog.Any("body", body))
 
 	return nil
 }
@@ -149,7 +143,11 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 	}
 
 	a.messages.Store(body.Message)
-	body.History = append(body.History, a.n.ID())
+
+	sb := syncBody{
+		Type:   "sync",
+		Values: a.messages.Messages(),
+	}
 
 	// Send to adjacent nodes to us
 	for _, neighbour := range a.neighbours {
@@ -163,8 +161,8 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 				dest:   neighbour,
 				body:   body,
 				logger: a.logger.With("destination", neighbour),
-				rpc:    a.n.SyncRPC,
-				retryPolicy: retrypolicy.Builder[maelstrom.Message]().
+				send:   a.n.Send,
+				retryPolicy: retrypolicy.Builder[any]().
 					HandleErrors(context.DeadlineExceeded).
 					WithDelay(5 * time.Millisecond).WithMaxRetries(-1).Build(),
 			}
@@ -176,7 +174,7 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 					slog.Any("error", err))
 			}
 
-		}(neighbour, body)
+		}(neighbour, sb)
 
 	}
 
@@ -221,6 +219,22 @@ func (a *app) handleTopology(msg maelstrom.Message) error {
 
 	return a.n.Reply(msg, response)
 
+}
+
+type syncBody struct {
+	Type   string    `json:"type"`
+	Values []float64 `json:"values"`
+}
+
+func (a *app) handleSync(msg maelstrom.Message) error {
+	var s syncBody
+	if err := json.Unmarshal(msg.Body, &s); err != nil {
+		return err
+	}
+
+	a.messages.Store(s.Values...)
+
+	return nil
 }
 
 func main() {
