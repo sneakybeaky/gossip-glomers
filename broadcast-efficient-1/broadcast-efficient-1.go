@@ -13,9 +13,50 @@ import (
 	"time"
 )
 
+type messages struct {
+	mx       sync.RWMutex
+	messages map[float64]bool
+}
+
+func newMessages() *messages {
+	return &messages{
+		messages: make(map[float64]bool),
+	}
+}
+
+func (m *messages) Store(values ...float64) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+
+	for _, v := range values {
+		m.messages[v] = true
+	}
+
+}
+
+func (m *messages) Messages() []float64 {
+	m.mx.RLock()
+	defer m.mx.RUnlock()
+
+	var messages = make([]float64, len(m.messages))
+	i := 0
+	for k := range m.messages {
+		messages[i] = k
+		i++
+	}
+
+	return messages
+}
+
+func (m *messages) Seen(message float64) bool {
+	m.mx.RLock()
+	defer m.mx.RUnlock()
+	seen, _ := m.messages[message]
+	return seen
+}
+
 type app struct {
-	mx         sync.RWMutex
-	messages   map[float64]bool
+	messages   *messages
 	n          *maelstrom.Node
 	neighbours []string
 	logger     *slog.Logger
@@ -29,13 +70,14 @@ func newApp(n *maelstrom.Node) *app {
 	a := &app{
 		n:        n,
 		logger:   slog.New(slog.NewTextHandler(os.Stderr, opts)),
-		messages: make(map[float64]bool),
+		messages: newMessages(),
 	}
 
 	n.Handle("broadcast", a.handleBroadcast)
 	n.Handle("read", a.handleRead)
 	n.Handle("topology", a.handleTopology)
 	n.Handle("init", a.handleInit)
+	n.Handle("sync", a.handleSync)
 
 	return a
 }
@@ -58,33 +100,20 @@ type broadcaster struct {
 	dest        string
 	body        any
 	logger      *slog.Logger
-	rpc         func(context.Context, string, any) (maelstrom.Message, error)
-	retryPolicy retrypolicy.RetryPolicy[maelstrom.Message]
+	send        func(dest string, body any) error
+	retryPolicy retrypolicy.RetryPolicy[any]
 }
 
 func (b broadcaster) broadcast() error {
 
-	type responseBody struct {
-		Type string `json:"type"`
-	}
+	b.logger.Debug("Sending sync to neighbour")
 
-	b.logger.Debug("Sending broadcast to neighbour")
-
-	resp, err := failsafe.Get[maelstrom.Message](func() (maelstrom.Message, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-		defer cancel()
-		return b.rpc(ctx, b.dest, b.body)
+	err := failsafe.Run(func() error {
+		return b.send(b.dest, b.body)
 	}, b.retryPolicy)
 
 	if err != nil {
 		b.logger.Error("Failed broadcasting", slog.Any("error", err))
-		return err
-	}
-
-	b.logger.Debug("Got broadcast response", slog.Any("response", resp))
-
-	var body responseBody
-	if err := json.Unmarshal(resp.Body, &body); err != nil {
 		return err
 	}
 
@@ -104,38 +133,35 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 		return err
 	}
 
-	a.mx.Lock()
-	defer a.mx.Unlock()
+	a.messages.Store(body.Message)
 
-	ok, _ := a.messages[body.Message]
-
-	if ok {
-		// already seen
-		return nil
+	sb := syncBody{
+		Type:   "sync",
+		Values: a.messages.Messages(),
 	}
-
-	a.messages[body.Message] = true
-	body.History = append(body.History, a.n.ID())
 
 	// Send to adjacent nodes to us
 	for _, neighbour := range a.neighbours {
 
-		if neighbour == msg.Src {
-			continue // don't send back to where we got it from
-		}
-
-		go func(neighbour string) {
+		go func(neighbour string, body any) {
 			b := broadcaster{
 				dest:   neighbour,
 				body:   body,
 				logger: a.logger.With("destination", neighbour),
-				rpc:    a.n.SyncRPC,
-				retryPolicy: retrypolicy.Builder[maelstrom.Message]().
+				send:   a.n.Send,
+				retryPolicy: retrypolicy.Builder[any]().
 					HandleErrors(context.DeadlineExceeded).
 					WithDelay(5 * time.Millisecond).WithMaxRetries(-1).Build(),
 			}
-			_ = b.broadcast()
-		}(neighbour)
+			err := b.broadcast()
+
+			if err != nil {
+				a.logger.Error("Unable to broadcast",
+					slog.String("destination", neighbour),
+					slog.Any("error", err))
+			}
+
+		}(neighbour, sb)
 
 	}
 
@@ -147,22 +173,12 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 }
 
 func (a *app) handleRead(msg maelstrom.Message) error {
-	a.mx.RLock()
-	defer a.mx.RUnlock()
 
-	a.logger.Debug("Returning messages I've seen", slog.Int("count", len(a.messages)))
-
-	messages := make([]float64, len(a.messages))
-
-	i := 0
-	for k := range a.messages {
-		messages[i] = k
-		i++
-	}
+	a.logger.Debug("Returning messages I've seen")
 
 	response := map[string]any{
 		"type":     "read_ok",
-		"messages": messages,
+		"messages": a.messages.Messages(),
 	}
 
 	return a.n.Reply(msg, response)
@@ -182,8 +198,6 @@ func (a *app) handleTopology(msg maelstrom.Message) error {
 
 	a.logger.Info("Topology", slog.Any("topology", t.Topology))
 
-	a.mx.Lock()
-	defer a.mx.Unlock()
 	a.neighbours = t.Topology[a.n.ID()]
 
 	response := map[string]any{
@@ -192,6 +206,22 @@ func (a *app) handleTopology(msg maelstrom.Message) error {
 
 	return a.n.Reply(msg, response)
 
+}
+
+type syncBody struct {
+	Type   string    `json:"type"`
+	Values []float64 `json:"values"`
+}
+
+func (a *app) handleSync(msg maelstrom.Message) error {
+	var s syncBody
+	if err := json.Unmarshal(msg.Body, &s); err != nil {
+		return err
+	}
+
+	a.messages.Store(s.Values...)
+
+	return nil
 }
 
 func main() {
