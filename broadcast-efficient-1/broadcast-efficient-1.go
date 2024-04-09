@@ -9,54 +9,11 @@ import (
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 	"log/slog"
 	"os"
-	"sync"
 	"time"
 )
 
-type messages struct {
-	mx       sync.RWMutex
-	messages map[float64]bool
-}
-
-func newMessages() *messages {
-	return &messages{
-		messages: make(map[float64]bool),
-	}
-}
-
-func (m *messages) Store(values ...float64) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-
-	for _, v := range values {
-		m.messages[v] = true
-	}
-
-}
-
-func (m *messages) Messages() []float64 {
-	m.mx.RLock()
-	defer m.mx.RUnlock()
-
-	var messages = make([]float64, len(m.messages))
-	i := 0
-	for k := range m.messages {
-		messages[i] = k
-		i++
-	}
-
-	return messages
-}
-
-func (m *messages) Seen(message float64) bool {
-	m.mx.RLock()
-	defer m.mx.RUnlock()
-	seen, _ := m.messages[message]
-	return seen
-}
-
 type app struct {
-	messages   *messages
+	values     *values
 	n          *maelstrom.Node
 	neighbours []string
 	logger     *slog.Logger
@@ -68,9 +25,9 @@ func newApp(n *maelstrom.Node) *app {
 		Level: slog.LevelDebug,
 	}
 	a := &app{
-		n:        n,
-		logger:   slog.New(slog.NewTextHandler(os.Stderr, opts)),
-		messages: newMessages(),
+		n:      n,
+		logger: slog.New(slog.NewTextHandler(os.Stderr, opts)),
+		values: newValues(),
 	}
 
 	n.Handle("broadcast", a.handleBroadcast)
@@ -133,11 +90,11 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 		return err
 	}
 
-	a.messages.Store(body.Message)
+	a.values.Store(body.Message)
 
 	sb := syncBody{
 		Type:   "sync",
-		Values: a.messages.Messages(),
+		Values: a.values.Values(),
 	}
 
 	// Send to adjacent nodes to us
@@ -174,11 +131,11 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 
 func (a *app) handleRead(msg maelstrom.Message) error {
 
-	a.logger.Debug("Returning messages I've seen")
+	a.logger.Debug("Returning values I've seen")
 
 	response := map[string]any{
 		"type":     "read_ok",
-		"messages": a.messages.Messages(),
+		"messages": a.values.Values(),
 	}
 
 	return a.n.Reply(msg, response)
@@ -219,7 +176,7 @@ func (a *app) handleSync(msg maelstrom.Message) error {
 		return err
 	}
 
-	a.messages.Store(s.Values...)
+	a.values.Store(s.Values...)
 
 	return nil
 }
