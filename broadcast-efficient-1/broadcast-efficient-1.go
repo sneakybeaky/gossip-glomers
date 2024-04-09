@@ -133,11 +133,6 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 		return err
 	}
 
-	if a.messages.Seen(body.Message) {
-		// already seen
-		return nil
-	}
-
 	a.messages.Store(body.Message)
 
 	sb := syncBody{
@@ -147,10 +142,6 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 
 	// Send to adjacent nodes to us
 	for _, neighbour := range a.neighbours {
-
-		if neighbour == msg.Src {
-			continue // don't send back to origin
-		}
 
 		go func(neighbour string, body any) {
 			b := broadcaster{
