@@ -13,10 +13,10 @@ import (
 )
 
 type app struct {
-	values     *values
-	n          *maelstrom.Node
-	neighbours []string
-	logger     *slog.Logger
+	values   *values
+	n        *maelstrom.Node
+	logger   *slog.Logger
+	topology *topology
 }
 
 func newApp(n *maelstrom.Node) *app {
@@ -86,7 +86,19 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 	}
 
 	var body broadcast
-	if err := json.Unmarshal(msg.Body, &body); err != nil {
+	err := json.Unmarshal(msg.Body, &body)
+
+	if err != nil {
+		return err
+	}
+
+	response := map[string]any{
+		"type": "broadcast_ok",
+	}
+
+	// Send back response now
+	err = a.n.Reply(msg, response)
+	if err != nil {
 		return err
 	}
 
@@ -97,8 +109,8 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 		Values: a.values.Values(),
 	}
 
-	// Send to adjacent nodes to us
-	for _, neighbour := range a.neighbours {
+	// Sync with all other nodes in the network
+	for _, n := range a.topology.AllBut(a.n.ID()) {
 
 		go func(neighbour string, body any) {
 			b := broadcaster{
@@ -118,15 +130,11 @@ func (a *app) handleBroadcast(msg maelstrom.Message) error {
 					slog.Any("error", err))
 			}
 
-		}(neighbour, sb)
+		}(n, sb)
 
 	}
 
-	response := map[string]any{
-		"type": "broadcast_ok",
-	}
-
-	return a.n.Reply(msg, response)
+	return nil
 }
 
 func (a *app) handleRead(msg maelstrom.Message) error {
@@ -155,7 +163,7 @@ func (a *app) handleTopology(msg maelstrom.Message) error {
 
 	a.logger.Info("Topology", slog.Any("topology", t.Topology))
 
-	a.neighbours = t.Topology[a.n.ID()]
+	a.topology = newTopology(t.Topology)
 
 	response := map[string]any{
 		"type": "topology_ok",
