@@ -64,6 +64,8 @@ func (a *app) handleRead(msg maelstrom.Message) error {
 		return a.n.Reply(msg, maelstrom.NewRPCError(maelstrom.TemporarilyUnavailable, "Unable to read counter from kv store"))
 	}
 
+	a.log.V(1).Info("Read counter", "counter", counter)
+
 	b := ReadOkMessageBody{
 		MessageBody: maelstrom.MessageBody{
 			Type: "read_ok",
@@ -77,11 +79,9 @@ func (a *app) handleRead(msg maelstrom.Message) error {
 
 func (a *app) handleAdd(msg maelstrom.Message) error {
 
-	a.log.V(1).Info("Returning value")
-
 	type AddMessageBody struct {
 		maelstrom.MessageBody
-		Delta int64 `json:"value"`
+		Delta int64 `json:"delta"`
 	}
 
 	var b AddMessageBody
@@ -89,6 +89,8 @@ func (a *app) handleAdd(msg maelstrom.Message) error {
 	if err := json.Unmarshal(msg.Body, &b); err != nil {
 		return err
 	}
+
+	a.log.V(1).Info("Adding delta", "delta", b.Delta)
 
 	var counter int64
 	err := a.kv.ReadInto(context.Background(), "counter", &counter)
@@ -101,11 +103,14 @@ func (a *app) handleAdd(msg maelstrom.Message) error {
 		if errors.As(err, &rpcError) {
 
 			if rpcError.Code != maelstrom.KeyDoesNotExist {
+				a.log.Error(rpcError, "RPC error reading from kv", "code", rpcError.Code, "text", rpcError.Text)
 				return a.n.Reply(msg, maelstrom.NewRPCError(maelstrom.Crash, "Unable to read counter from kv store"))
 			}
 
 		}
 	}
+
+	a.log.V(1).Info("Read counter ok", "counter", counter)
 
 	err = a.kv.CompareAndSwap(context.Background(), "counter", counter, counter+b.Delta, true)
 	if err != nil {
@@ -130,7 +135,7 @@ func (a *app) handleAdd(msg maelstrom.Message) error {
 
 func main() {
 
-	stdr.SetVerbosity(1)
+	stdr.SetVerbosity(3)
 	log := stdr.NewWithOptions(stdlog.New(os.Stderr, "", stdlog.LstdFlags), stdr.Options{LogCaller: stdr.All})
 
 	n := maelstrom.NewNode()
