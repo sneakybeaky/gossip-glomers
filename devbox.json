@@ -1,11 +1,11 @@
 {
   "packages": [
+    "path:maelstrom-flake#maelstrom",
     "graphviz",
     "gnuplot",
     "ruby_3_1",
     "curl",
     "glow",
-    "openjdk17@latest",
     "go@latest"
   ],
   "env": {
@@ -15,45 +15,38 @@
   "shell": {
     "init_hook": [
       "clear",
-      "echo 'Welcome to the Maelstrom in Devbox Shell! \n * Type `devbox run help` to get started.\n * Type `devbox run install` to install Maelstrom.\n * After installing Maelstrom, type `devbox run docs` to browse the Maelstrom docs.'"
+      "echo 'Welcome to the Maelstrom in Devbox Shell! \n * Type `devbox run help` to get started.\n * Type `devbox run docs` to browse the Maelstrom docs.'"
     ],
     "scripts": {
-      "install": [
-        "tar xjf <(curl -L -k https://github.com/jepsen-io/maelstrom/releases/download/v0.2.3/maelstrom.tar.bz2)"
-      ],
-      "help": [
-        "glow README.md"
-      ],
-      "docs": [
-        "glow maelstrom/doc"
-      ],
+      "help": ["glow README.md"],
+      "docs": ["glow .devbox/nix/profile/default/share/maelstrom/doc"],
       "echo": [
         "go install  echo/*",
-        "./maelstrom/maelstrom test -w echo --bin $GOPATH/bin/echo --node-count 1 --time-limit 10"
+        "maelstrom test -w echo --bin $GOPATH/bin/echo --node-count 1 --time-limit 10"
       ],
       "unique-ids": [
         "go install  unique-ids/*",
-        "./maelstrom/maelstrom test -w unique-ids --bin $GOPATH/bin/unique-ids --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition"
+        "maelstrom test -w unique-ids --bin $GOPATH/bin/unique-ids --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition"
       ],
       "broadcast-single-node": [
         "go install  broadcast-single-node/*",
-        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast --node-count 1 --time-limit 20 --rate 10"
+        "maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast --node-count 1 --time-limit 20 --rate 10"
       ],
       "broadcast-multi-node": [
         "go install broadcast-multi-node/*",
-        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast-multi --node-count 5 --time-limit 20 --rate 10"
+        "maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast-multi --node-count 5 --time-limit 20 --rate 10"
       ],
       "broadcast-fault-tolerant": [
         "go install broadcast-fault-tolerant/*",
-        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-fault-tolerant --node-count 5 --time-limit 20 --rate 10 --nemesis partition"
+        "maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-fault-tolerant --node-count 5 --time-limit 20 --rate 10 --nemesis partition"
       ],
       "broadcast-efficient-1": [
         "go install broadcast-efficient-1/*",
-        "./maelstrom/maelstrom test -w broadcast --bin $GOPATH/bin/broadcast-efficient-1 --node-count 25 --time-limit 20 --rate 100 --latency 100"
+        "maelstrom test -w broadcast --bin $GOPATH/bin/broadcast-efficient-1 --node-count 25 --time-limit 20 --rate 100 --latency 100"
       ],
       "grow-only-counter": [
         "go install grow-only-counter/*",
-        "./maelstrom/maelstrom test -w g-counter --bin $GOPATH/bin/grow-only-counter --node-count 3 --rate 100 --time-limit 20 --nemesis partition"
+        "maelstrom test -w g-counter --bin $GOPATH/bin/grow-only-counter --node-count 3 --rate 100 --time-limit 20 --nemesis partition"
       ]
 
     }
