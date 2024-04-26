@@ -37,34 +37,31 @@
         {
             maelstrom = pkgs.stdenvNoCC.mkDerivation rec {
 
-            pname = "maelstrom";
-            version = "v0.2.3";
-            src = pkgs.fetchzip {
-                url = "https://github.com/jepsen-io/maelstrom/releases/download/v0.2.3/maelstrom.tar.bz2";
-                hash = "sha256-mE/FIHDLYd1lxAvECZGelZtbo0xkQgMroXro+xb9bMI";
-            };
+                pname = "maelstrom";
+                version = "0.2.3";
+                name = "maelstrom-${version}";
 
-            buildInputs = [ pkgs.jre pkgs.makeWrapper];
+                src = pkgs.fetchzip {
+                    url = "https://github.com/jepsen-io/maelstrom/releases/download/v${version}/maelstrom.tar.bz2";
+                    hash = "sha256-mE/FIHDLYd1lxAvECZGelZtbo0xkQgMroXro+xb9bMI";
+                };
 
-            dontBuild = true;
-            installPhase = ''
-                runHook preInstall
+                buildInputs = [ pkgs.jre pkgs.makeWrapper];
 
-                mkdir -p $out/share
-                cp -r . $out/share/maelstrom
+                dontBuild = true;
+                installPhase = ''
+                    runHook preInstall
 
-                makeWrapper ${pkgs.jre}/bin/java $out/bin/maelstrom \
-                    --add-flags "-Djava.awt.headless=true  -jar $out/share/maelstrom/lib/maelstrom.jar"
+                    mkdir -p $out/share
+                    cp -r . $out/share/maelstrom
 
-                runHook postInstall
-            '';
+                    makeWrapper ${pkgs.jre}/bin/java $out/bin/maelstrom \
+                        --add-flags "-Djava.awt.headless=true  -jar $out/share/maelstrom/lib/maelstrom.jar"
+
+                    runHook postInstall
+                '';
             };
         });
 
-
-      # The default package for 'nix build'. This makes sense if the
-      # flake provides only one package or there is a clear "main"
-      # package.
-      defaultPackage = forAllSystems (system: self.packages.${system}.maelstrom);
     };
 }
