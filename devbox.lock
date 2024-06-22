@@ -3,72 +3,140 @@
   "packages": {
     "curl": {
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#curl",
-      "source": "nixpkg"
+      "source": "nixpkg",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "man",
+              "path": "/nix/store/wpkanx82jzjf60gp4nla7kpgfl66ks5v-curl-8.4.0-man",
+              "default": true
+            },
+            {
+              "name": "bin",
+              "path": "/nix/store/x7km8sc29zkz3p4d44si597ll6yxzyns-curl-8.4.0-bin",
+              "default": true
+            }
+          ]
+        }
+      }
     },
     "glow": {
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#glow",
-      "source": "nixpkg"
+      "source": "nixpkg",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "path": "/nix/store/s2a2mm6y1wwzjm7cn0vsgk8vph1fmcnj-glow-1.5.1",
+              "default": true
+            }
+          ]
+        }
+      }
     },
     "gnuplot": {
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#gnuplot",
-      "source": "nixpkg"
+      "source": "nixpkg",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "path": "/nix/store/j7vaf1bghckpflkyir9vhk7ijkk7nbik-gnuplot-5.4.9",
+              "default": true
+            }
+          ]
+        }
+      }
     },
     "go@latest": {
-      "last_modified": "2024-04-19T17:36:04-04:00",
-      "resolved": "github:NixOS/nixpkgs/92d295f588631b0db2da509f381b4fb1e74173c5#go",
+      "last_modified": "2024-06-11T07:07:27Z",
+      "resolved": "github:NixOS/nixpkgs/f7207adcc68d9cafa29e3cd252a18743ae512c6a#go",
       "source": "devbox-search",
-      "version": "1.22.2",
+      "version": "1.22.3",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/x7gzwywk7mvjamdyc4n45fh62jks7lma-go-1.22.2",
+              "path": "/nix/store/i04a1a6qgxhjw6c0ld2b3x1v815sbxjc-go-1.22.3",
               "default": true
             }
           ],
-          "store_path": "/nix/store/x7gzwywk7mvjamdyc4n45fh62jks7lma-go-1.22.2"
+          "store_path": "/nix/store/i04a1a6qgxhjw6c0ld2b3x1v815sbxjc-go-1.22.3"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/ka1iykac1bfvy98p9g2ii3xn2fnl98cn-go-1.22.2",
+              "path": "/nix/store/d68f2iblysnl0r4qcfdacmdpmvvy86kf-go-1.22.3",
               "default": true
             }
           ],
-          "store_path": "/nix/store/ka1iykac1bfvy98p9g2ii3xn2fnl98cn-go-1.22.2"
+          "store_path": "/nix/store/d68f2iblysnl0r4qcfdacmdpmvvy86kf-go-1.22.3"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/s26vypls3i2rvprj2jq7l1ypb5y12mq9-go-1.22.2",
+              "path": "/nix/store/1p6vr83cgyfwm8517jhfmf6lypzhy3q2-go-1.22.3",
               "default": true
             }
           ],
-          "store_path": "/nix/store/s26vypls3i2rvprj2jq7l1ypb5y12mq9-go-1.22.2"
+          "store_path": "/nix/store/1p6vr83cgyfwm8517jhfmf6lypzhy3q2-go-1.22.3"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/9kriq85qac7phcxgpdqbqr25vlr61ifw-go-1.22.2",
+              "path": "/nix/store/00mg4vlhzmm7gi9bd5v5ydjlgrywpc3n-go-1.22.3",
               "default": true
             }
           ],
-          "store_path": "/nix/store/9kriq85qac7phcxgpdqbqr25vlr61ifw-go-1.22.2"
+          "store_path": "/nix/store/00mg4vlhzmm7gi9bd5v5ydjlgrywpc3n-go-1.22.3"
         }
       }
     },
     "graphviz": {
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#graphviz",
-      "source": "nixpkg"
+      "source": "nixpkg",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "path": "/nix/store/ph5w2fy2ppcz53jik4k0kd6cf2a7vprq-graphviz-9.0.0",
+              "default": true
+            }
+          ]
+        }
+      }
+    },
+    "path:maelstrom-flake#maelstrom": {
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "path": "/nix/store/xqcrrdrl7hjpwhl63rlzs34q68jdshz2-maelstrom-0.2.3",
+              "default": true
+            }
+          ]
+        }
+      }
     },
     "ruby_3_1": {
       "plugin_version": "0.0.2",
       "resolved": "github:NixOS/nixpkgs/75a52265bda7fd25e06e3a67dee3f0354e73243c#ruby_3_1",
-      "source": "nixpkg"
+      "source": "nixpkg",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "path": "/nix/store/cyas7m9szsv439115mwn3b5dyilfg4za-ruby-3.1.4",
+              "default": true
+            }
+          ]
+        }
+      }
     }
   }
 }
