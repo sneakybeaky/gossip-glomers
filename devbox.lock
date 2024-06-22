@@ -8,13 +8,13 @@
         "aarch64-darwin": {
           "outputs": [
             {
-              "name": "man",
-              "path": "/nix/store/wpkanx82jzjf60gp4nla7kpgfl66ks5v-curl-8.4.0-man",
+              "name": "bin",
+              "path": "/nix/store/x7km8sc29zkz3p4d44si597ll6yxzyns-curl-8.4.0-bin",
               "default": true
             },
             {
-              "name": "bin",
-              "path": "/nix/store/x7km8sc29zkz3p4d44si597ll6yxzyns-curl-8.4.0-bin",
+              "name": "man",
+              "path": "/nix/store/wpkanx82jzjf60gp4nla7kpgfl66ks5v-curl-8.4.0-man",
               "default": true
             }
           ]
