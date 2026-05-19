@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/failsafe-go/failsafe-go"
+	"github.com/failsafe-go/failsafe-go/retrypolicy"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/stdr"
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 	stdlog "log"
+	"time"
 
 	"os"
 )
@@ -77,6 +80,8 @@ func (a *app) handleRead(msg maelstrom.Message) error {
 
 }
 
+var ErrPreconditionFailed = errors.New("Precondition failed")
+
 func (a *app) handleAdd(msg maelstrom.Message) error {
 
 	type AddMessageBody struct {
@@ -92,39 +97,64 @@ func (a *app) handleAdd(msg maelstrom.Message) error {
 
 	a.log.V(1).Info("Adding delta", "delta", b.Delta)
 
-	var counter int64
-	err := a.kv.ReadInto(context.Background(), "counter", &counter)
+	retryPolicy := retrypolicy.Builder[any]().
+		HandleErrors(ErrPreconditionFailed).
+		WithDelay(time.Millisecond * 10).
+		WithMaxRetries(3).
+		Build()
 
-	if err != nil {
+	err := failsafe.Run(func() error {
 
-		a.log.Error(err, "Problem reading counter from kv")
+		var counter int64
+		err := a.kv.ReadInto(context.Background(), "counter", &counter)
 
-		var rpcError *maelstrom.RPCError
-		if errors.As(err, &rpcError) {
+		if err != nil {
 
-			if rpcError.Code != maelstrom.KeyDoesNotExist {
-				a.log.Error(rpcError, "RPC error reading from kv", "code", rpcError.Code, "text", rpcError.Text)
-				return a.n.Reply(msg, maelstrom.NewRPCError(maelstrom.Crash, "Unable to read counter from kv store"))
+			a.log.Error(err, "Problem reading counter from kv")
+
+			var rpcError *maelstrom.RPCError
+			if errors.As(err, &rpcError) {
+
+				if rpcError.Code != maelstrom.KeyDoesNotExist {
+					a.log.Error(rpcError, "RPC error reading from kv", "code", rpcError.Code, "text", rpcError.Text)
+					return rpcError
+				}
+
+			} else {
+				return err
+			}
+		}
+
+		a.log.V(1).Info("Read counter ok", "counter", counter)
+
+		err = a.kv.CompareAndSwap(context.Background(), "counter", counter, counter+b.Delta, true)
+		if err != nil {
+			a.log.Error(err, "Problem setting counter in kv")
+
+			var rpcError *maelstrom.RPCError
+			if errors.As(err, &rpcError) {
+
+				a.log.Error(rpcError, "RPC error writing to kv store", "code", rpcError.Code, "text", rpcError.Text)
+
+				if rpcError.Code == maelstrom.PreconditionFailed {
+					a.log.V(1).Info("Counter value modified in a different process")
+					return ErrPreconditionFailed // caused by counter being modified in another thread
+				}
+
+				return rpcError
+
+			} else {
+				return err
 			}
 
 		}
-	}
 
-	a.log.V(1).Info("Read counter ok", "counter", counter)
+		return nil
 
-	err = a.kv.CompareAndSwap(context.Background(), "counter", counter, counter+b.Delta, true)
+	}, retryPolicy)
+
 	if err != nil {
-		a.log.Error(err, "Problem setting counter in kv")
-
-		var rpcError *maelstrom.RPCError
-		if errors.As(err, &rpcError) {
-
-			a.log.Error(rpcError, "RPC error writing to kv store", "code", rpcError.Code, "text", rpcError.Text)
-
-			return a.n.Reply(msg, maelstrom.NewRPCError(maelstrom.Crash, "Unable to write counter to kv store"))
-
-		}
-
+		return a.n.Reply(msg, maelstrom.NewRPCError(maelstrom.Crash, "Failed to update counter"))
 	}
 
 	return a.n.Reply(msg, maelstrom.MessageBody{
