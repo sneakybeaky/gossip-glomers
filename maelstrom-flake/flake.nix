@@ -38,7 +38,7 @@
             maelstrom = pkgs.stdenvNoCC.mkDerivation rec {
 
                 pname = "maelstrom";
-                version = "0.2.3";
+                version = "0.2.4";
                 name = "maelstrom-${version}";
 
                 src = pkgs.fetchzip {
