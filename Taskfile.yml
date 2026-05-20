@@ -21,6 +21,11 @@ tasks:
     cmds:
       - glow README.md
 
+  docs:
+    desc: Show maelstrom documentation
+    cmds:
+      - maelstrom-docs
+
   unique-ids:
     desc: Run the unique-ids challenge
     cmds:
