@@ -59,6 +59,8 @@
               maelstrom
             ];
 
+            MAELSTROM_DOCS = "${pkgs.maelstrom}/share/maelstrom/doc";
+
             shellHook = ''
               export GOPATH="$PWD/.bin"
               export PATH="$PATH:$PWD/.bin"

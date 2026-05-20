@@ -58,9 +58,6 @@
                     makeWrapper ${pkgs.jre}/bin/java $out/bin/maelstrom \
                         --add-flags "-Djava.awt.headless=true  -jar $out/share/maelstrom/lib/maelstrom.jar"
 
-                    makeWrapper ${pkgs.glow}/bin/glow $out/bin/maelstrom-docs \
-                        --add-flags "$out/share/maelstrom/doc"
-
                     runHook postInstall
                 '';
             };

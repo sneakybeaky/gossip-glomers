@@ -24,7 +24,7 @@ tasks:
   docs:
     desc: Show maelstrom documentation
     cmds:
-      - maelstrom-docs
+      - glow {{.MAELSTROM_DOCS}}
 
   unique-ids:
     desc: Run the unique-ids challenge
