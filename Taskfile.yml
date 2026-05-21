@@ -26,6 +26,12 @@ tasks:
     cmds:
       - glow {{.MAELSTROM_DOCS}}
 
+  echo:
+    desc: Run the echo challenge
+    cmds:
+      - go install cmd/echo/*
+      - maelstrom test -w echo --bin $GOPATH/bin/echo --node-count 1 --time-limit 10
+
   unique-ids:
     desc: Run the unique-ids challenge
     cmds:
