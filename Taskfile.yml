@@ -67,3 +67,8 @@ tasks:
     cmds:
       - go install cmd/grow-only-counter/*
       - maelstrom test -w g-counter --bin $GOPATH/bin/grow-only-counter --node-count 3 --rate 100 --time-limit 20 --nemesis partition
+
+  debug:
+    desc: Run the maelstrom server
+    cmds:
+      - maelstrom serve
