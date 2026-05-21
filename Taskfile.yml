@@ -56,10 +56,10 @@ tasks:
       - go install broadcast-fault-tolerant/*
       - maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-fault-tolerant --node-count 5 --time-limit 20 --rate 10 --nemesis partition
 
-  broadcast-efficient-1:
-    desc: Run the broadcast-efficient-1 challenge
+  broadcast-efficient:
+    desc: Run the broadcast-efficient challenge
     cmds:
-      - go install broadcast-efficient-1/*
+      - go install cmd/broadcast-efficient/*
       - maelstrom test -w broadcast --bin $GOPATH/bin/broadcast-efficient-1 --node-count 25 --time-limit 20 --rate 100 --latency 100
 
   grow-only-counter:
