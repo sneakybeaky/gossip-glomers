@@ -35,7 +35,7 @@ tasks:
   unique-ids:
     desc: Run the unique-ids challenge
     cmds:
-      - go install  unique-ids/*
+      - go install cmd/unique-ids/*
       - maelstrom test -w unique-ids --bin $GOPATH/bin/unique-ids --time-limit 30 --rate 1000 --node-count 3 --availability total --nemesis partition
 
   broadcast-single-node:
