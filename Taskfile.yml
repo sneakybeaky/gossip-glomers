@@ -41,19 +41,19 @@ tasks:
   broadcast-single-node:
     desc: Run the broadcast-single-node challenge
     cmds:
-      - go install  broadcast-single-node/*
+      - go install cmd/broadcast-single-node/*
       - maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast --node-count 1 --time-limit 20 --rate 10
 
   broadcast-multi-node:
     desc: Run the broadcast-multi-node challenge
     cmds:
-      - go install broadcast-multi-node/*
+      - go install cmd/broadcast-multi-node/*
       - maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-broadcast-multi --node-count 5 --time-limit 20 --rate 10
 
   broadcast-fault-tolerant:
     desc: Run the broadcast-fault-tolerant challenge
     cmds:
-      - go install broadcast-fault-tolerant/*
+      - go install cmd/broadcast-fault-tolerant/*
       - maelstrom test -w broadcast --bin $GOPATH/bin/maelstrom-fault-tolerant --node-count 5 --time-limit 20 --rate 10 --nemesis partition
 
   broadcast-efficient:
@@ -65,5 +65,5 @@ tasks:
   grow-only-counter:
     desc: Run the grow-only-counter challenge
     cmds:
-      - go install grow-only-counter/*
+      - go install cmd/grow-only-counter/*
       - maelstrom test -w g-counter --bin $GOPATH/bin/grow-only-counter --node-count 3 --rate 100 --time-limit 20 --nemesis partition
